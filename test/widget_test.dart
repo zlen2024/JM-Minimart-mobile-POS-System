@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:jm_mini_mart_propos/main.dart'; // Ensure correct import
+import 'package:app/main.dart'; // Ensure correct import
 
 void main() {
   testWidgets('App basic shell test', (WidgetTester tester) async {
