@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../features/pos/presentation/pages/pos_dashboard_page.dart';
+import '../../../../features/inventory/presentation/pages/inventory_dashboard_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -13,7 +14,7 @@ class _HomePageState extends State<HomePage> {
 
   final List<Widget> _pages = [
     const PosDashboardPage(),
-    const Center(child: Text('Inventory Dashboard')),
+    const InventoryDashboardPage(),
     const Center(child: Text('Reports Dashboard')),
   ];
 
