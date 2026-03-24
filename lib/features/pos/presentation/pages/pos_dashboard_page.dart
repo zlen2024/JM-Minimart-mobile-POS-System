@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../providers/cart_provider.dart';
 import '../providers/pos_provider.dart';
 import '../../domain/entities/sale.dart';
 import '../../../inventory/presentation/providers/inventory_provider.dart';
 import '../../../inventory/domain/entities/product.dart';
 import '../../../reporting/presentation/utils/receipt_generator.dart';
-import 'scanner_page.dart';
 
 class PosDashboardPage extends ConsumerStatefulWidget {
   const PosDashboardPage({Key? key}) : super(key: key);
@@ -22,27 +22,31 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
   final Color _indigoLight = const Color(0xFFE8EAF6); // indigo-50
 
   final TextEditingController _searchController = TextEditingController();
+  final MobileScannerController _scannerController = MobileScannerController();
+  DateTime? _lastScanTime;
 
-  void _scanBarcode() async {
-    final scannedBarcode = await Navigator.push<String>(
-      context,
-      MaterialPageRoute(builder: (context) => const ScannerPage()),
-    );
-
-    if (scannedBarcode != null && mounted) {
-      _handleBarcode(scannedBarcode);
-    }
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scannerController.dispose();
+    super.dispose();
   }
 
   void _handleBarcode(String barcodeString) {
+      // Throttle scans to once every 2 seconds
+      if (_lastScanTime != null && DateTime.now().difference(_lastScanTime!) < const Duration(seconds: 2)) {
+          return;
+      }
+      _lastScanTime = DateTime.now();
+
       final products = ref.read(productsProvider).value ?? [];
       final match = products.where((p) => p.barcode == barcodeString || p.sku == barcodeString).firstOrNull;
 
       if (match != null) {
           ref.read(cartProvider.notifier).addProduct(match);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${match.name}')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${match.name}'), duration: const Duration(seconds: 1)));
       } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Product with barcode $barcodeString not found.')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Product with barcode $barcodeString not found.'), duration: const Duration(seconds: 1)));
       }
   }
 
@@ -119,29 +123,54 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
   }
 
   Widget _buildBarcodeScanner(BuildContext context) {
-    return GestureDetector(
-      onTap: _scanBarcode,
-      child: Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        decoration: BoxDecoration(
-          color: _surfaceContainerLow,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.qr_code_scanner, size: 48, color: _primaryColor),
-            const SizedBox(height: 12),
-            const Text(
-              'Tap to Scan Barcode',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Inter',
+    return Container(
+      margin: const EdgeInsets.all(16),
+      height: 200, // Fixed height for scanner view
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Stack(
+        children: [
+          MobileScanner(
+            controller: _scannerController,
+            onDetect: (capture) {
+              final List<Barcode> barcodes = capture.barcodes;
+              if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                _handleBarcode(barcodes.first.rawValue!);
+              }
+            },
+          ),
+          Positioned(
+            bottom: 8,
+            right: 8,
+            child: IconButton(
+              color: Colors.white,
+              icon: const Icon(Icons.flash_on),
+              onPressed: () => _scannerController.toggleTorch(),
+            ),
+          ),
+          Positioned(
+            bottom: 8,
+            left: 8,
+            child: IconButton(
+              color: Colors.white,
+              icon: const Icon(Icons.flip_camera_ios),
+              onPressed: () => _scannerController.switchCamera(),
+            ),
+          ),
+          Center(
+            child: Container(
+              width: 250,
+              height: 100,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -154,7 +183,6 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
         decoration: InputDecoration(
           hintText: 'Search SKU or Product...',
           prefixIcon: const Icon(Icons.search),
-          suffixIcon: IconButton(icon: const Icon(Icons.barcode_reader), onPressed: _scanBarcode),
           filled: true,
           fillColor: _surfaceContainerLow,
           border: OutlineInputBorder(
