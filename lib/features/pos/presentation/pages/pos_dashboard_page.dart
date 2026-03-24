@@ -6,6 +6,7 @@ import '../../domain/entities/sale.dart';
 import '../../../inventory/presentation/providers/inventory_provider.dart';
 import '../../../inventory/domain/entities/product.dart';
 import '../../../reporting/presentation/utils/receipt_generator.dart';
+import 'scanner_page.dart';
 
 class PosDashboardPage extends ConsumerStatefulWidget {
   const PosDashboardPage({Key? key}) : super(key: key);
@@ -22,44 +23,27 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
 
   final TextEditingController _searchController = TextEditingController();
 
-  void _simulatedScan() async {
-    final products = ref.read(productsProvider).value ?? [];
-    if (products.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No products in inventory to scan.')));
-      return;
-    }
-
-    // Show a dialog to select a product to "scan"
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Simulated Scan'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: products.length,
-              itemBuilder: (context, index) {
-                final product = products[index];
-                return ListTile(
-                  title: Text(product.name),
-                  subtitle: Text('SKU: ${product.sku} | Barcode: ${product.barcode ?? "N/A"}'),
-                  onTap: () {
-                    ref.read(cartProvider.notifier).addProduct(product);
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${product.name}')));
-                  },
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ],
-        );
-      },
+  void _scanBarcode() async {
+    final scannedBarcode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (context) => const ScannerPage()),
     );
+
+    if (scannedBarcode != null && mounted) {
+      _handleBarcode(scannedBarcode);
+    }
+  }
+
+  void _handleBarcode(String barcodeString) {
+      final products = ref.read(productsProvider).value ?? [];
+      final match = products.where((p) => p.barcode == barcodeString || p.sku == barcodeString).firstOrNull;
+
+      if (match != null) {
+          ref.read(cartProvider.notifier).addProduct(match);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${match.name}')));
+      } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Product with barcode $barcodeString not found.')));
+      }
   }
 
   void _checkout() async {
@@ -73,7 +57,6 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
     final sale = Sale(
       totalAmount: cartState.total,
       paymentMethod: 'Cash', // Defaulting for demo
-
       createdAt: DateTime.now(),
     );
 
@@ -83,7 +66,6 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
       productId: item.product.id!,
       quantity: item.quantity,
       unitPrice: item.product.price,
-
     )).toList();
 
     try {
@@ -138,7 +120,7 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
 
   Widget _buildBarcodeScanner(BuildContext context) {
     return GestureDetector(
-      onTap: _simulatedScan,
+      onTap: _scanBarcode,
       child: Container(
         margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
@@ -151,7 +133,7 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
             Icon(Icons.qr_code_scanner, size: 48, color: _primaryColor),
             const SizedBox(height: 12),
             const Text(
-              'Tap to Simulate Scan',
+              'Tap to Scan Barcode',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -172,7 +154,7 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
         decoration: InputDecoration(
           hintText: 'Search SKU or Product...',
           prefixIcon: const Icon(Icons.search),
-          suffixIcon: IconButton(icon: const Icon(Icons.barcode_reader), onPressed: _simulatedScan),
+          suffixIcon: IconButton(icon: const Icon(Icons.barcode_reader), onPressed: _scanBarcode),
           filled: true,
           fillColor: _surfaceContainerLow,
           border: OutlineInputBorder(
@@ -181,7 +163,6 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
           ),
         ),
         onSubmitted: (value) {
-            // Simplified search simulation
             final products = ref.read(productsProvider).value ?? [];
             final match = products.where((p) => (p.sku ?? '').toLowerCase() == value.toLowerCase() || p.barcode == value).firstOrNull;
             if (match != null) {
