@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/product.dart';
 import '../providers/inventory_provider.dart';
+import '../../../../core/widgets/barcode_scanner_page.dart';
 
 class AddProductPage extends ConsumerStatefulWidget {
   const AddProductPage({Key? key}) : super(key: key);
@@ -43,8 +44,6 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         price: price,
         barcode: barcode.isNotEmpty ? barcode : null,
         stockQuantity: stock,
-
-
       );
 
       try {
@@ -65,6 +64,18 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     }
   }
 
+  void _scanBarcode() async {
+    final scannedBarcode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (context) => const BarcodeScannerPage()),
+    );
+    if (scannedBarcode != null) {
+      setState(() {
+        _barcodeController.text = scannedBarcode;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,19 +90,19 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Product Name'),
+                decoration: const InputDecoration(labelText: 'Product Name', border: OutlineInputBorder()),
                 validator: (value) => value == null || value.isEmpty ? 'Enter a name' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _skuController,
-                decoration: const InputDecoration(labelText: 'SKU'),
+                decoration: const InputDecoration(labelText: 'SKU', border: OutlineInputBorder()),
                 validator: (value) => value == null || value.isEmpty ? 'Enter an SKU' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _priceController,
-                decoration: const InputDecoration(labelText: 'Price'),
+                decoration: const InputDecoration(labelText: 'Price', border: OutlineInputBorder()),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Enter a price';
@@ -102,12 +113,19 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _barcodeController,
-                decoration: const InputDecoration(labelText: 'Barcode (Optional)'),
+                decoration: InputDecoration(
+                  labelText: 'Barcode (Optional)',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.qr_code_scanner),
+                    onPressed: _scanBarcode,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _stockController,
-                decoration: const InputDecoration(labelText: 'Initial Stock Quantity'),
+                decoration: const InputDecoration(labelText: 'Initial Stock Quantity', border: OutlineInputBorder()),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Enter stock quantity';
@@ -118,10 +136,13 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _saveProduct,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.0),
-                  child: Text('Save Product'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A237E),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
+                child: const Text('Save Product', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ],
           ),

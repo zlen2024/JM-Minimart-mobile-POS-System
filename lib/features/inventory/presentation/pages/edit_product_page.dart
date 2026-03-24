@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/product.dart';
 import '../providers/inventory_provider.dart';
+import '../../../../core/widgets/barcode_scanner_page.dart';
 
 class EditProductPage extends ConsumerStatefulWidget {
   final Product product;
@@ -75,6 +76,18 @@ class _EditProductPageState extends ConsumerState<EditProductPage> {
     }
   }
 
+  void _scanBarcode() async {
+    final scannedBarcode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (context) => const BarcodeScannerPage()),
+    );
+    if (scannedBarcode != null) {
+      setState(() {
+        _barcodeController.text = scannedBarcode;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,7 +125,14 @@ class _EditProductPageState extends ConsumerState<EditProductPage> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _barcodeController,
-                decoration: const InputDecoration(labelText: 'Barcode (Optional)', border: OutlineInputBorder()),
+                decoration: InputDecoration(
+                  labelText: 'Barcode (Optional)',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.qr_code_scanner),
+                    onPressed: _scanBarcode,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               TextFormField(

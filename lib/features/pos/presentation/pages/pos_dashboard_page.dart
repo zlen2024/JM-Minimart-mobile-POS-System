@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../providers/cart_provider.dart';
@@ -30,7 +31,7 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
     super.dispose();
   }
 
-  void _handleBarcode(String barcodeString) {
+  void _handleBarcode(String barcodeString) async {
       if (_lastScanTime != null && DateTime.now().difference(_lastScanTime!) < const Duration(seconds: 2)) {
           return;
       }
@@ -40,6 +41,10 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
       final match = products.where((p) => p.barcode == barcodeString || p.sku == barcodeString).firstOrNull;
 
       if (match != null) {
+          // Play a "beep" and vibrate on success
+          SystemSound.play(SystemSoundType.click);
+          HapticFeedback.heavyImpact();
+
           ref.read(cartProvider.notifier).addProduct(match);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${match.name}'), duration: const Duration(seconds: 1)));
       } else {
@@ -148,8 +153,8 @@ class _PosDashboardPageState extends ConsumerState<PosDashboardPage> {
 
           // Draggable Cart Bottom Sheet
           DraggableScrollableSheet(
-            initialChildSize: 0.15,
-            minChildSize: 0.15,
+            initialChildSize: 0.18,
+            minChildSize: 0.18,
             maxChildSize: 0.8,
             builder: (BuildContext context, ScrollController scrollController) {
               return Container(
@@ -374,7 +379,7 @@ class _CartHeaderDelegate extends SliverPersistentHeaderDelegate {
         borderRadius: shrinkOffset > 0 ? BorderRadius.zero : const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: shrinkOffset > 0 ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)] : null,
       ),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -410,13 +415,13 @@ class _CartHeaderDelegate extends SliverPersistentHeaderDelegate {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   disabledBackgroundColor: Colors.grey.shade400,
                 ),
-                child: const Text('Checkout', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: const Text('Checkout', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -426,10 +431,10 @@ class _CartHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => 100.0;
+  double get maxExtent => 90.0;
 
   @override
-  double get minExtent => 100.0;
+  double get minExtent => 90.0;
 
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => true;
