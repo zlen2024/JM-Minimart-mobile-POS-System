@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Login - JM Mini Mart POS{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <form class="card auth-card" method="post">
+    <div class="auth-logo">
+      <img src="{{ url_for('static', filename='icons/icon-192.png') }}" alt="JM Mini Mart">
+    </div>
+    <h1>JM Mini Mart</h1>
+    <p class="muted">Sign in to continue</p>
+
+    <label>Username</label>
+    <input type="text" name="username" autocomplete="username" required autofocus>
+
+    <label>Password</label>
+    <input type="password" name="password" autocomplete="current-password" required>
+
+    <button type="submit" class="btn btn-primary btn-block">Log In</button>
+  </form>
+</div>
+{% endblock %}

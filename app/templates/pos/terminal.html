@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}POS - JM Mini Mart{% endblock %}
+{% block content %}
+<div class="pos-layout">
+  <div class="pos-products">
+    <div class="search-row">
+      <form method="get" style="display:flex; gap:8px; flex:1;">
+        <input type="text" name="q" placeholder="Search product or barcode" value="{{ query }}">
+        <button class="btn btn-sm" type="submit">Go</button>
+      </form>
+      <button type="button" class="btn btn-sm" id="open-scanner">📷 Scan</button>
+    </div>
+
+    <div class="product-grid">
+      {% for product in products %}
+      <form method="post" action="{{ url_for('pos.cart_add') }}">
+        <input type="hidden" name="product_id" value="{{ product.id }}">
+        <input type="hidden" name="q" value="{{ query }}">
+        <button type="submit" class="product-tile" {% if product.stock_qty <= 0 %}disabled{% endif %} style="width:100%; border:1px solid var(--border);">
+          <div class="name">{{ product.name }}</div>
+          <div class="price">${{ product.price_cents|currency }}</div>
+          <div class="stock">{{ product.stock_qty }} in stock</div>
+        </button>
+      </form>
+      {% else %}
+      <p class="muted">No products match.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="pos-cart card">
+    <h2 style="margin-top:0;">Cart</h2>
+    {% for entry in cart_items %}
+    <div class="cart-item">
+      <div>
+        <div class="name">{{ entry.product.name }}</div>
+        <div class="sub muted">${{ entry.product.price_cents|currency }} each</div>
+      </div>
+      <div class="qty-controls">
+        <form method="post" action="{{ url_for('pos.cart_update') }}">
+          <input type="hidden" name="product_id" value="{{ entry.product.id }}">
+          <input type="hidden" name="action" value="decrement">
+          <button type="submit">−</button>
+        </form>
+        <span>{{ entry.quantity }}</span>
+        <form method="post" action="{{ url_for('pos.cart_update') }}">
+          <input type="hidden" name="product_id" value="{{ entry.product.id }}">
+          <input type="hidden" name="action" value="increment">
+          <button type="submit">+</button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <p class="muted">Cart is empty. Tap a product to add it.</p>
+    {% endfor %}
+
+    {% if cart_items %}
+    <div class="cart-total">
+      <span>Total</span>
+      <span>${{ cart_total_cents|currency }}</span>
+    </div>
+
+    <form method="post" action="{{ url_for('pos.checkout') }}">
+      <label>Payment Method</label>
+      <select name="payment_method">
+        <option value="cash">Cash</option>
+        <option value="gcash">GCash</option>
+        <option value="card">Card</option>
+      </select>
+      <button type="submit" class="btn btn-primary btn-block">Charge ${{ cart_total_cents|currency }}</button>
+    </form>
+    <form method="post" action="{{ url_for('pos.cart_clear') }}" style="margin-top:8px;">
+      <button type="submit" class="btn btn-block">Clear Cart</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="scanner-modal hidden" id="scanner-modal">
+  <div class="scanner-box">
+    <div id="scanner-reader"></div>
+    <button type="button" class="btn btn-block scanner-close" id="close-scanner">Close Scanner</button>
+  </div>
+</div>
+
+<form id="scan-add-form" method="post" action="{{ url_for('pos.cart_add') }}" class="hidden" style="display:none;">
+  <input type="hidden" name="barcode" id="scanned-barcode">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+  const scannerModal = document.getElementById('scanner-modal');
+  let html5QrCode;
+
+  document.getElementById('open-scanner').addEventListener('click', () => {
+    scannerModal.classList.remove('hidden');
+    html5QrCode = new Html5Qrcode("scanner-reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 220 },
+      (decodedText) => {
+        document.getElementById('scanned-barcode').value = decodedText;
+        stopScanner();
+        document.getElementById('scan-add-form').submit();
+      }
+    ).catch((err) => {
+      alert("Camera access failed: " + err);
+      stopScanner();
+    });
+  });
+
+  function stopScanner() {
+    if (html5QrCode) {
+      html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
+    }
+    scannerModal.classList.add('hidden');
+  }
+
+  document.getElementById('close-scanner').addEventListener('click', stopScanner);
+</script>
+{% endblock %}

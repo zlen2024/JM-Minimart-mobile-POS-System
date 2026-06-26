@@ -1,123 +1,73 @@
-# JM Mini Mart ProPOS 🛒
+# JM Mini Mart ProPOS
 
-A high-speed, mobile-first Point of Sale (POS) and Inventory Management System built with Flutter, Riverpod, and SQFlite. This system is designed for fast-paced retail environments with offline-first reliability and a robust clean architecture.
+A mobile-first Point of Sale (POS) and Inventory Management web app for JM Mini Mart, built as an installable **Progressive Web App (PWA)**. Same functionality as the original plan, now running in the browser with a Flask backend and SQLite database — no app store, no native build, just open it on a phone and "Add to Home Screen".
 
-## 🚀 Features
+## Tech Stack
 
-- **Inventory Management:** Full CRUD for products with image support and low-stock alerts.
-- **Dynamic Point of Sale (POS):** Fast cart management and barcode scanning integration.
-- **Offline-First:** SQFlite local relational storage ensures the app works perfectly without internet.
-- **Reporting & Printing:** Generate PDF receipts and view daily/weekly sales analytics.
-- **Cloud Sync Ready:** Includes a `Syncable` interface and base Firebase service for background sync (Phase 5).
+- **Backend:** Flask (Python), kept intentionally small and dependency-light
+- **Database:** SQLite via SQLAlchemy ORM
+- **Auth:** Flask-Login session auth with hashed passwords (username + password)
+- **Frontend:** Server-rendered Jinja2 templates + plain CSS/JS (no SPA framework) — mobile-first, with a desktop layout that kicks in above 720px
+- **Camera / Barcode scanning:** [html5-qrcode](https://github.com/mebjas/html5-qrcode) (loaded via CDN), uses the browser's `getUserMedia` camera API — **requires HTTPS** (or `localhost`) to work
+- **Charts:** Chart.js (CDN) for the sales dashboard
+- **PWA:** `manifest.json` + a service worker that caches the app shell (CSS/icons) so the app is installable; live data always comes from the server
 
-## 🛠 Tech Stack
+## Money handling
 
-- **Framework:** Flutter (3.41.5 Stable)
-- **State Management:** Riverpod (`flutter_riverpod`)
-- **Local Database:** SQFlite & path_provider
-- **Features:**
-  - Barcode Scanning: `mobile_scanner`
-  - PDF Receipts: `pdf` & `printing`
-  - Analytics: `fl_chart`
-  - Cloud Sync: `firebase_core` & `cloud_firestore`
+Prices are stored as **integers in cents** (`price_cents`) everywhere in the database — never as floats — to avoid floating-point rounding bugs in totals. They're only converted to a decimal dollar amount at the display layer (a `currency` Jinja filter) and when the user types a price into a form, which is then parsed back into cents before saving.
 
----
+## Database schema (basic POS ERD)
 
-## 💻 Setup & Installation
+- **users** — id, username, password_hash, role, created_at
+- **categories** — id, name
+- **products** — id, name, barcode, category_id → categories, price_cents, stock_qty, low_stock_threshold, is_active
+- **sales** — id, user_id → users, total_cents, payment_method, created_at
+- **sale_items** — id, sale_id → sales, product_id → products, product_name (snapshot), quantity, unit_price_cents, subtotal_cents
 
-### Prerequisites
-
-1.  **Flutter SDK:** Make sure you have Flutter installed (version 3.41.5 or newer).
-    *   [Install Flutter](https://docs.flutter.dev/get-started/install)
-2.  **IDE:** Visual Studio Code or Android Studio with the Flutter and Dart plugins installed.
-3.  **Firebase (Optional for Phase 1-4):** If you intend to use the Cloud Sync features, you will need to set up a Firebase project and add the `google-services.json` (Android) and `GoogleService-Info.plist` (iOS) files to the appropriate directories.
-
-### Steps
-
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd jm-mini-mart
-    ```
-
-2.  **Install Dependencies:**
-    ```bash
-    flutter pub get
-    ```
-
-3.  **Run Code Generation (if applicable in future updates):**
-    Currently, the app uses standard Riverpod Notifiers, but if `build_runner` is added later for Freezed or Riverpod Generator:
-    ```bash
-    flutter pub run build_runner build --delete-conflicting-outputs
-    ```
-
-## 🐛 Debugging & Development
-
-### Running the App
-
-To run the application in debug mode on an emulator or connected device:
+## Setup & Run
 
 ```bash
-flutter run
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+export FLASK_APP=run.py
+flask seed-db        # creates the SQLite DB + a default admin user + sample products
+
+python run.py         # runs on http://0.0.0.0:5000
 ```
 
-### Architecture Overview
+Default login after seeding: **admin / admin123** — change this password in production (a real "change password" page isn't included; update it by re-hashing via the Flask shell, or extend the auth blueprint).
 
-This project strictly adheres to a **Feature-First Clean Architecture**.
+### Camera access in production
 
-*   `lib/core/`: Contains shared logic, database helpers (`database_helper.dart`), themes, and network services.
-*   `lib/features/`: Contains the core modules of the app.
-    *   `inventory/`: Product and Category CRUD, entities (`product.dart`, `category.dart`), and Riverpod providers.
-    *   `pos/`: Shopping cart logic (`cart_provider.dart`), sales entities, and POS UI state.
-    *   `reporting/`: Sales data aggregation and PDF receipt generation (`receipt_provider.dart`).
+Browsers only grant camera access (`getUserMedia`) on secure origins. When you deploy this for real use, serve it over **HTTPS** (e.g. behind Caddy/Nginx with a TLS cert, or a platform that provides one automatically) — otherwise the barcode scanner button will fail with a permission error.
 
-### Local Database (SQLite)
+## Project layout
 
-The database schema is defined in `lib/core/db/database_helper.dart`. It includes tables for `categories`, `products`, `sales`, and `sale_items`.
-To inspect the database while debugging, you can use tools like **DB Browser for SQLite**. You will need to pull the `.db` file from the device/emulator:
-
-```bash
-# Android Example (replace package name if different)
-adb exec-out run-as com.jmminimart cat databases/pos_system.db > pos_system.db
+```
+app/
+  __init__.py          # app factory, blueprint registration, login gate
+  config.py            # SQLite URI, secret key
+  extensions.py        # db, login_manager
+  models.py            # User, Category, Product, Sale, SaleItem
+  cli.py               # `flask seed-db` command
+  blueprints/
+    auth/              # login / logout
+    pos/               # cart (session-based), checkout, receipt
+    inventory/         # product & category CRUD
+    reporting/         # sales dashboard
+  templates/           # Jinja2 templates, mobile-first CSS classes
+  static/
+    css/app.css
+    js/, icons/
+    manifest.json
+    service-worker.js
+run.py                  # entrypoint
+requirements.txt
+instance/pos.db          # SQLite file (created on first run, gitignored)
 ```
 
-### Firebase Sync (Phase 5)
+## Testing
 
-The `SyncService` in `lib/features/core/network/sync_service.dart` looks for entities implementing the `Syncable` interface (which includes an `is_synced` boolean).
-*Note: You must configure Firebase via the FlutterFire CLI (`flutterfire configure`) before using this feature in production.*
-
----
-
-## 📦 Building for Production
-
-When you are ready to deploy the application, build the release versions.
-
-### Android
-
-To build an App Bundle (recommended for Google Play):
-```bash
-flutter build appbundle --release
-```
-
-To build an APK:
-```bash
-flutter build apk --release
-```
-
-### iOS
-
-*Note: Requires macOS and Xcode.*
-
-1.  Update the bundle identifier and provisioning profiles in Xcode (`ios/Runner.xcworkspace`).
-2.  Run the build command:
-    ```bash
-    flutter build ipa --release
-    ```
-
-## 🧪 Testing
-
-To run the unit and widget tests:
-
-```bash
-flutter test
-```
+No automated test suite yet. Manually verified flow: login → browse/search products → add to cart → scan barcode → checkout → printable receipt → stock decrements → sales show up on the reports dashboard.

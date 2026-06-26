@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Receipt #{{ sale.id }}{% endblock %}
+{% block content %}
+<div class="card receipt">
+  <h2 style="text-align:center; margin-top:0;">JM Mini Mart</h2>
+  <div class="row"><span>Receipt #</span><span>{{ sale.id }}</span></div>
+  <div class="row"><span>Date</span><span>{{ sale.created_at.strftime('%Y-%m-%d %H:%M') }}</span></div>
+  <div class="row"><span>Cashier</span><span>{{ sale.user.username }}</span></div>
+  <div class="row"><span>Payment</span><span>{{ sale.payment_method|upper }}</span></div>
+  <hr>
+  {% for item in sale.items %}
+  <div class="row">
+    <span>{{ item.product_name }} x{{ item.quantity }}</span>
+    <span>${{ item.subtotal_cents|currency }}</span>
+  </div>
+  {% endfor %}
+  <hr>
+  <div class="row" style="font-weight:700; font-size:1rem;">
+    <span>TOTAL</span>
+    <span>${{ sale.total_cents|currency }}</span>
+  </div>
+</div>
+
+<div class="no-print" style="display:flex; gap:8px; margin-top:14px;">
+  <button class="btn btn-block" onclick="window.print()">Print Receipt</button>
+  <a href="{{ url_for('pos.terminal') }}" class="btn btn-primary btn-block" style="text-align:center;">New Sale</a>
+</div>
+{% endblock %}

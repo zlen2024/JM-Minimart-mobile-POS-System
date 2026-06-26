@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Reports - JM Mini Mart{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Reports</h1>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="label">Today's Sales</div>
+    <div class="value">${{ today_total_cents|currency }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Today's Transactions</div>
+    <div class="value">{{ today_count }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Last 7 Days</div>
+    <div class="value">${{ week_total_cents|currency }}</div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+  <canvas id="salesChart" height="180"></canvas>
+</div>
+
+<h2 style="font-size:1.05rem;">Recent Sales</h2>
+<div class="list">
+  {% for sale in recent_sales %}
+  <a class="list-row" href="{{ url_for('pos.receipt', sale_id=sale.id) }}">
+    <div>
+      <div class="name">Sale #{{ sale.id }}</div>
+      <div class="sub">{{ sale.created_at.strftime('%Y-%m-%d %H:%M') }} · {{ sale.user.username }} · {{ sale.payment_method|upper }}</div>
+    </div>
+    <div class="name">${{ sale.total_cents|currency }}</div>
+  </a>
+  {% else %}
+  <p class="muted">No sales recorded yet.</p>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script>
+  const ctx = document.getElementById('salesChart');
+  const labels = {{ daily_totals|map(attribute='label')|list|tojson }};
+  const totals = {{ daily_totals|map(attribute='total_cents')|list|tojson }}.map(c => c / 100);
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{ label: 'Sales ($)', data: totals, backgroundColor: '#0f9d58' }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+</script>
+{% endblock %}
